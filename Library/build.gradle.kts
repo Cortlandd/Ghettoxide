@@ -44,5 +44,12 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // Lifecycle / VM
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.fragment.ktx)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
 
 }
