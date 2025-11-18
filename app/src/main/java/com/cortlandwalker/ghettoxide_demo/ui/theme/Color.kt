@@ -1,4 +1,4 @@
-package com.cortlandwalker.ghettoxide.ui.theme
+package com.cortlandwalker.ghettoxide_demo.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

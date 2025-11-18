@@ -1,4 +1,4 @@
-package com.cortlandwalker.ghettoxide
+package com.cortlandwalker.ghettoxide_demo
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.cortlandwalker.ghettoxide.ui.theme.GhettoxideTheme
+import com.cortlandwalker.ghettoxide_demo.ui.theme.GhettoxideTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

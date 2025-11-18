@@ -1,4 +1,4 @@
-package com.cortlandwalker.library
+package com.cortlandwalker.ghettoxide
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

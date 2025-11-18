@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.cortlandwalker.ghettoxide"
+    namespace = "com.cortlandwalker.ghettoxide_demo"
     compileSdk = 36
 
     defaultConfig {

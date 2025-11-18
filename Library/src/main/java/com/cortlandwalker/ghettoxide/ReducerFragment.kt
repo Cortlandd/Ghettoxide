@@ -1,4 +1,4 @@
-package com.cortlandwalker.library
+package com.cortlandwalker.ghettoxide
 
 import android.os.Bundle
 import android.view.View

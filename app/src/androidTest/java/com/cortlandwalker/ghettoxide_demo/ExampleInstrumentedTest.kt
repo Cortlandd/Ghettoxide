@@ -1,4 +1,4 @@
-package com.cortlandwalker.ghettoxide
+package com.cortlandwalker.ghettoxide_demo
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

@@ -1,4 +1,4 @@
-package com.cortlandwalker.library
+package com.cortlandwalker.ghettoxide
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner

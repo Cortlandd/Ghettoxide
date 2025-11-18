@@ -1,4 +1,4 @@
-package com.cortlandwalker.library
+package com.cortlandwalker.ghettoxide_demo
 
 import org.junit.Test
 
