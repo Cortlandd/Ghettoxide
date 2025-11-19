@@ -15,11 +15,17 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-  implementation("com.github.Cortlandd.Ghettoxide:Library:1.0.0")
+    implementation("com.github.Cortlandd.Ghettoxide:Library:1.0.0")
 }
 ```
 
-# Base Example (see app)
+# Basic Example App Screenshots
+
+| Default State        | Adding Todo            | Todo Item Added        | Toast when tapping Todo |
+|----------------------|------------------------|------------------------|-------------------------|
+| ![](samples/img.png) | ![](samples/img_1.png) | ![](samples/img_2.png) | ![](samples/img_3.png)  |
+
+# Base Example (see app/ directory)
 
 ```kotlin
 data class TodoState(
@@ -39,6 +45,7 @@ sealed interface TodoEffect {
 
 ```kotlin
 class TodoReducer : Reducer<TodoState, TodoAction, TodoEffect>() {
+    // Use this to kick off your first "load" event. Great for database, network calls, etc
     override fun onLoadAction(): TodoAction? {
         return null
     }
@@ -271,4 +278,3 @@ class MainActivity : ComponentActivity() {
     }
 }
 ```
-
