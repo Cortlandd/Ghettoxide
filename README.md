@@ -1,6 +1,10 @@
+![](logo/android-redux2.png)
+
 # Ghettoxide
 
 _An android `Architecture` based on Redux_
+
+[![](https://jitpack.io/v/Cortlandd/Ghettoxide.svg)](https://jitpack.io/#Cortlandd/Ghettoxide)
 
 # Installation
 ```kotlin
