@@ -89,6 +89,12 @@ class StoreViewModel<S : Any, A : Any, E : Any>(
         viewModelScope.launch { reducer.accept(action) }
     }
 
+    /**
+     * Convenience to dispatch actions when reducer access isn't present
+     * */
+    val dispatch: (A) -> Unit
+        get() = reducer::postAction
+
     companion object {
         /**
          * Factory helper to create a [StoreViewModel].

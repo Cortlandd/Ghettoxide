@@ -34,6 +34,9 @@ android {
 
 dependencies {
 
+    // AndroidX fragment / lifecycle for ReducerFragment
+    api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -42,11 +45,11 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     // Lifecycle / VM
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    api(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.fragment.ktx)
+    api(libs.androidx.fragment.ktx)
 
     // Coroutines
-    implementation(libs.kotlinx.coroutines.android)
+    api(libs.kotlinx.coroutines.android)
 
 }

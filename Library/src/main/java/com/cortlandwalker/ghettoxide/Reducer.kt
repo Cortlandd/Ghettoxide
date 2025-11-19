@@ -197,10 +197,22 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     // ---------- Optional hooks ----------
 
     /**
-     * Optionally return an initial Action to auto-post when the Fragment's view is created.
-     * Useful for kicking off DB/Network loads once per view lifecycle.
+     * Optional initial action that will be posted once this [Reducer] is attached
+     * to a [ViewModel] scope via `attachScope`.
+     *
+     * Use this to kick off your first "load" event. Great for db/network calls:
+     *
+     * ```kotlin
+     * override fun onLoadAction(): Action? = Action.Load
+     * ```
+     *
+     * If you don't need any automatic startup behavior, return `null`:
+     *
+     * ```kotlin
+     * override fun onLoadAction(): Action? = null
+     * ```
      */
-    open fun onLoadAction(): A? = null
+    abstract fun onLoadAction(): A?
 
     /**
      * Override to cancel extra jobs or release resources that are not lifecycle-aware.
