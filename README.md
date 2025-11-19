@@ -282,3 +282,10 @@ class MainActivity : ComponentActivity() {
     }
 }
 ```
+
+# Updating tag
+```kotlin
+
+git tag x.x.x
+git push origin x.x.x
+```
