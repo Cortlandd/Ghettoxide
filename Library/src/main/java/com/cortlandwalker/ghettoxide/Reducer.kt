@@ -176,7 +176,7 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
      * postAction(Action.Refresh)
      * ```
      */
-    fun postAction(action: A) = {
+    fun postAction(action: A) {
         check(isBound) { "Reducer not bound. Ensure StoreViewModel.bind(...) was called." }
         postFn(action)
     }
