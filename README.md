@@ -296,7 +296,7 @@ class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
 }
 ```
 
-Put it all together (typically we use a fragment but as an example here is the MainActivity version)
+Put it all together
 ```kotlin
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
