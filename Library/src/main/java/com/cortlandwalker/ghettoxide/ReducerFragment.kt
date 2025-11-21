@@ -3,6 +3,7 @@ package com.cortlandwalker.ghettoxide
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -46,16 +47,40 @@ import kotlinx.coroutines.launch
  *   // In onViewCreated or Compose, you typically:
  *   // vm.state ... observe to render
  *   // vm.postAction(WorkoutListAction.Load) ... but this base calls reducer.onLoadAction() automatically.
+ *
+ *     // XML
+ *     private fun setupListeners(binding: FragmentUpsertWorkoutBinding) {
+ *         binding.saveButton.setOnClickListener {
+ *             reducer.postAction(UpsertWorkoutAction.Save(binding.nameInput.text.toString()))
+ *         }
+ *     }
+ *
+ *     // Compose example
+ *     private fun renderWithCompose() = ComposeView(requireContext()).apply {
+ *         setContent {
+ *             val s = vm.state.collectAsState().value
+ *             UpsertWorkoutScreen(
+ *                 state = s,
+ *                 reducer = reducer as UpsertWorkoutReducer
+ *             )
+ *         }
+ *     }
  * }
  * ```
  */
 abstract class ReducerFragment<S : Any, A : Any, E : Any> : Fragment() {
 
     /**
-     * The reducer instance that will process actions and manage state/effects.
-     * Provide via DI or by constructing with repositories/use-cases.
+     * Reducer provided by the Fragment.
+     *
+     * - Non-DI:
+     *   override val reducer = UpsertWorkoutReducer()
+     *   usage: reducer = reducer as UpsertWorkoutReducer
+     *
+     * - DI (Hilt):
+     *   @Inject override lateinit var reducer: UpsertWorkoutReducer
      */
-    protected abstract val reducer: Reducer<S, A, E>
+    protected abstract var reducer: Reducer<S, A, E>
 
     /**
      * Initial State for the screen.
@@ -63,10 +88,14 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any> : Fragment() {
     protected abstract val initialState: S
 
     /**
-     * The screen's Store-style ViewModel. Exposed as protected for UI binding.
+     * StoreViewModel owns the "real" reducer that's bound and survives rotation.
      */
-    protected lateinit var vm: StoreViewModel<S, A, E>
-        private set
+    protected val vm: StoreViewModel<S, A, E> by viewModels {
+        StoreViewModel.factory(
+            initial = initialState,
+            reducer = reducer       // uses whatever the Fragment has *now*
+        )
+    }
 
     /**
      * Handle one-off effects (navigation, snackbars, etc.). Collected with the **VIEW** lifecycle.
@@ -87,12 +116,12 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any> : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        @Suppress("UNCHECKED_CAST")
-        vm = ViewModelProvider(
-            this,
-            StoreViewModel.factory(initialState, reducer)
-        )[StoreViewModel::class.java] as StoreViewModel<S, A, E>
-        // The ViewModel binds the reducer and attaches viewModelScope internally.
+        // Force VM creation so its reducer is bound.
+        val store = vm
+
+        // Re-point the Fragment's reducer reference to the VM's reducer.
+        // From this point on, `reducer` === the bound instance.
+        reducer = store.reducer
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

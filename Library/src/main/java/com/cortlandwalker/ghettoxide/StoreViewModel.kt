@@ -41,8 +41,11 @@ class StoreViewModel<S : Any, A : Any, E : Any>(
     /**
      * The reducer responsible for processing actions, mutating state, and emitting effects.
      */
-    private val reducer: Reducer<S, A, E>
+    private val reducerImpl: Reducer<S, A, E>
 ) : ViewModel() {
+
+    val reducer: Reducer<S, A, E>
+        get() = reducerImpl
 
     // -------------------- State --------------------
 
