@@ -19,7 +19,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.Cortlandd:Ghettoxide:1.0.1")
+    implementation("com.github.Cortlandd:Ghettoxide:1.0.4")
 }
 ```
 
@@ -47,6 +47,7 @@ class CounterReducer : Reducer<CounterState, CounterAction, CounterEffect>() {
         }
     }
 }
+```
 
 # Basic Example App Screenshots
 
