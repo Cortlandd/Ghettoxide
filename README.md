@@ -23,6 +23,31 @@ dependencies {
 }
 ```
 
+### Reducer helpers
+
+Every `Reducer<S, A, E>` gets a few built-ins:
+
+- `state { current -> current.copy(...) }` – atomically update state.
+- `emit(effect)` – push a one-off effect (navigation, toast, etc.).
+- `postAction(action)` – enqueue another action from inside the reducer or UI.
+- `currentState` – read the latest state snapshot.
+
+Example:
+
+```kotlin
+class CounterReducer : Reducer<CounterState, CounterAction, CounterEffect>() {
+
+    override suspend fun process(action: CounterAction) {
+        when (action) {
+            CounterAction.Increment -> {
+                val before = currentState.count
+                state { it.copy(count = before + 1) }
+                emit(CounterEffect.ShowToast("value used to be $before but now is ${currentState.count}"))
+            }
+        }
+    }
+}
+
 # Basic Example App Screenshots
 
 | Default State        | Adding Todo            | Todo Item Added        | Toast when tapping Todo |

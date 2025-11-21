@@ -154,8 +154,48 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
 
     // ---------- State & Effects API ----------
 
+    /**
+     * Snapshot of the latest state at the moment of access.
+     *
+     * This is a convenience wrapper around the internal [read] function and is safe to call
+     * from within [process]. It always returns the most recent state, respecting the
+     * serialized action processing (mutex) that the reducer runs under.
+     *
+     * ### When to use
+     * - Branching logic based on current state (e.g., defaults, fallbacks, guards).
+     * - Computing derived values that depend on multiple fields in state.
+     *
+     * ### When **not** to use
+     * - Do **not** try to mutate state through this property. Use [setState] / [state]
+     *   mutation helpers instead so changes go through the reducer pipeline.
+     *
+     * ### Example
+     * ```kotlin
+     * override suspend fun process(action: ConversationAction) {
+     *     when (action) {
+     *         is ConversationAction.SearchInputChanged -> {
+     *             val query = action.query.trim()
+     *             if (query.isEmpty()) {
+     *                 state { it.copy(lastSearchedInput = "", mediaItems = emptyList()) }
+     *                 return
+     *             }
+     *
+     *             // Safely read the latest state snapshot
+     *             val mediaType = currentState.chosenMediaType
+     *                 ?: currentState.mediaTypes.firstOrNull()
+     *                 ?: MediaType.GIF
+     *
+     *             // ... use mediaType for search, then update state as needed
+     *         }
+     *     }
+     * }
+     * ```
+     */
+    protected final val currentState: S
+        get() = read()
+
     /** Returns the current state (thread-safe via StoreViewModel). */
-    protected fun read(): S = readFn()
+    private fun read(): S = readFn()
 
     /**
      * Atomically transforms current state and writes it back.
