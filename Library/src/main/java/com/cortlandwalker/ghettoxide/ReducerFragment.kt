@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
  * @param S State type
  * @param A Action type
  * @param E Effect type
+ * @param R Reducer type
  *
  * ### Example
  * ```kotlin
@@ -68,7 +69,7 @@ import kotlinx.coroutines.launch
  * }
  * ```
  */
-abstract class ReducerFragment<S : Any, A : Any, E : Any> : Fragment() {
+abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> : Fragment() {
 
     /**
      * Reducer provided by the Fragment.
@@ -149,4 +150,4 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any> : Fragment() {
 /**
  * Backward-compat alias. Prefer [ReducerFragment].
  */
-typealias FragmentReducer<S, A, E> = ReducerFragment<S, A, E>
+typealias FragmentReducer<S, A, E, R> = ReducerFragment<S, A, E, R>

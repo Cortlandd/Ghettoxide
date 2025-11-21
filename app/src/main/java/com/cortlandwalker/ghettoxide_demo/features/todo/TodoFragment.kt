@@ -13,8 +13,7 @@ import com.cortlandwalker.ghettoxide.ReducerFragment
 
 class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
 
-    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> =
-        TodoReducer()
+    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> = TodoReducer()
 
     override val initialState: TodoState = TodoState()
 
