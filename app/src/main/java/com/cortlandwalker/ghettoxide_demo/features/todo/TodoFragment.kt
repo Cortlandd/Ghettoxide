@@ -4,27 +4,34 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.ComposeView
+import com.cortlandwalker.ghettoxide.FragmentReducer
 import com.cortlandwalker.ghettoxide.Reducer
 import com.cortlandwalker.ghettoxide.ReducerFragment
 
-// Unused for now but typically nav_graph and this fragment is used
+class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
 
-class TodoFragment(
-    override val reducer: Reducer<TodoState, TodoAction, TodoEffect>,
-    override val initialState: TodoState
-) : ReducerFragment<TodoState, TodoAction, TodoEffect>() {
+    // Non-DI version (manual)
+    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> =
+        TodoReducer()
+
+    override val initialState: TodoState = TodoState()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return ComposeView(requireContext()).apply {
-            setContent {
-                //TodoScreen(state, reducer)
-            }
+    ) = ComposeView(requireContext()).apply {
+        setContent {
+
+            val state = vm.state.collectAsState().value
+
+            // 🚨 Use the SAFE reducer reference (the bound one)
+            TodoScreen(
+                state = state,
+                reducer = reducer as TodoReducer
+            )
         }
     }
-
 }

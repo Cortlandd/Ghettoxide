@@ -21,7 +21,7 @@ fun TodoScreen(
     // Typically this would be the following:
     // reducer: Reducer<TodoState, TodoAction, TodoEffect>
     // But as an example:
-    dispatch: (TodoAction) -> Unit
+    reducer: TodoReducer
 ) {
     var isAdding by remember { mutableStateOf(false) }
     var newTodo by remember { mutableStateOf(TextFieldValue("")) }
@@ -39,7 +39,7 @@ fun TodoScreen(
     fun saveTodo() {
         val trimmed = newTodo.text.trim()
         if (trimmed.isNotEmpty()) {
-            dispatch(TodoAction.Save(trimmed))
+            reducer.postAction(TodoAction.Save(trimmed))
         }
         cancelAdd()
     }
@@ -89,10 +89,10 @@ fun TodoScreen(
                             TodoRow(
                                 todoName = todo,
                                 onTap = {
-                                    dispatch(TodoAction.TappedTodo(todo))
+                                    reducer.postAction(TodoAction.TappedTodo(todo))
                                 },
                                 onDelete = {
-                                    dispatch(TodoAction.DeleteTodo(todo))
+                                    reducer.postAction(TodoAction.DeleteTodo(todo))
                                 }
                             )
                         }
@@ -175,7 +175,7 @@ fun TodoScreenPreview() {
     MaterialTheme {
         TodoScreen(
             state = previewState,
-            dispatch = fakeDispatch
+            reducer = TodoReducer()
         )
     }
 }
