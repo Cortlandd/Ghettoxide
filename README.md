@@ -106,10 +106,7 @@ class TodoReducer : Reducer<TodoState, TodoAction, TodoEffect>() {
 @Composable
 fun TodoScreen(
     state: TodoState,
-    // Typically this would be the following:
-    // reducer: Reducer<TodoState, TodoAction, TodoEffect>
-    // But as an example:
-    dispatch: (TodoAction) -> Unit
+    reducer: TodoReducer
 ) {
     var isAdding by remember { mutableStateOf(false) }
     var newTodo by remember { mutableStateOf(TextFieldValue("")) }
@@ -127,7 +124,7 @@ fun TodoScreen(
     fun saveTodo() {
         val trimmed = newTodo.text.trim()
         if (trimmed.isNotEmpty()) {
-            dispatch(TodoAction.Save(trimmed))
+            reducer.postAction(TodoAction.Save(trimmed))
         }
         cancelAdd()
     }
@@ -177,10 +174,10 @@ fun TodoScreen(
                             TodoRow(
                                 todoName = todo,
                                 onTap = {
-                                    dispatch(TodoAction.TappedTodo(todo))
+                                    reducer.postAction(TodoAction.TappedTodo(todo))
                                 },
                                 onDelete = {
-                                    dispatch(TodoAction.DeleteTodo(todo))
+                                    reducer.postAction(TodoAction.DeleteTodo(todo))
                                 }
                             )
                         }
@@ -252,66 +249,76 @@ private fun TodoRow(
 @Preview(showBackground = true)
 @Composable
 fun TodoScreenPreview() {
-    // Fake placeholder state for the preview
     val previewState = TodoState(
         items = listOf("Buy groceries", "Walk dog", "Pay bills")
     )
 
-    // Fake dispatch that does nothing (previews cannot run real reducers)
-    val fakeDispatch: (TodoAction) -> Unit = {}
-
     MaterialTheme {
         TodoScreen(
             state = previewState,
-            dispatch = fakeDispatch
+            reducer = TodoReducer()
         )
     }
 }
 ```
 
-Put it all together (typically we use a fragment but as an example here is the MainActivity version)
+TodoFragment that handles the reducer effect and what Screen to display
 ```kotlin
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
 
-        // Create StoreViewModel using Ghettoxide's factory
-        val store = ViewModelProvider(
-            this,
-            StoreViewModel.factory(
-                initial = TodoState(),
-                reducer = TodoReducer()
-            )
-        )[StoreViewModel::class.java] as StoreViewModel<TodoState, TodoAction, TodoEffect>
+    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> =
+        TodoReducer()
 
+    override val initialState: TodoState = TodoState()
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ) = ComposeView(requireContext()).apply {
         setContent {
-            GhettoxideTheme {
-                val state by store.state.collectAsState()
 
-                // observe effects
-                LaunchedEffect(Unit) {
-                    store.effects.collect { eff ->
-                        when (eff) {
-                            is TodoEffect.ToastTodo ->
-                                Toast.makeText(this@MainActivity, eff.todoName, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+            val state = vm.state.collectAsState().value
+            TodoScreen(
+                state = state,
+                reducer = reducer as TodoReducer
+            )
+        }
+    }
 
-                TodoScreen(
-                    state = state,
-                    dispatch = store::postAction
-                )
+    override fun onEffect(effect: TodoEffect) {
+        when(effect) {
+            is TodoEffect.ToastTodo -> {
+                Toast.makeText(requireContext(), effect.todoName, Toast.LENGTH_SHORT).show()
             }
         }
     }
 }
 ```
 
-# Updating tag
+Put it all together (typically we use a fragment but as an example here is the MainActivity version)
 ```kotlin
+class MainActivity : FragmentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
+    }
+}
+```
 
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.fragment.app.FragmentContainerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/todo_fragment_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:name="com.cortlandwalker.ghettoxide_demo.features.todo.TodoFragment" />
+```
+
+# Updating tag
+```
 git tag x.x.x
 git push origin x.x.x
 ```

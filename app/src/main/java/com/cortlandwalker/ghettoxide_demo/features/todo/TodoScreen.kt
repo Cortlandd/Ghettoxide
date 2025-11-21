@@ -12,15 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.cortlandwalker.ghettoxide.Reducer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodoScreen(
     state: TodoState,
-    // Typically this would be the following:
-    // reducer: Reducer<TodoState, TodoAction, TodoEffect>
-    // But as an example:
     reducer: TodoReducer
 ) {
     var isAdding by remember { mutableStateOf(false) }
@@ -62,8 +58,6 @@ fun TodoScreen(
                 .padding(innerPadding)
         ) {
 
-            // Background area above the input.
-            // When we are in "adding" mode, tapping anywhere in this area cancels.
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -164,13 +158,9 @@ private fun TodoRow(
 @Preview(showBackground = true)
 @Composable
 fun TodoScreenPreview() {
-    // Fake placeholder state for the preview
     val previewState = TodoState(
         items = listOf("Buy groceries", "Walk dog", "Pay bills")
     )
-
-    // Fake dispatch that does nothing (previews cannot run real reducers)
-    val fakeDispatch: (TodoAction) -> Unit = {}
 
     MaterialTheme {
         TodoScreen(
