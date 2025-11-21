@@ -81,7 +81,7 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
      * - DI (Hilt):
      *   @Inject override lateinit var reducer: UpsertWorkoutReducer
      */
-    protected abstract var reducer: Reducer<S, A, E>
+    abstract var reducer: Reducer<S, A, E>
 
     /**
      * Initial State for the screen.
