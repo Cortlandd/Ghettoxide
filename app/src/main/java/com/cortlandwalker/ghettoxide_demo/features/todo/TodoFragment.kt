@@ -27,7 +27,6 @@ class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
 
             val state = vm.state.collectAsState().value
 
-            // 🚨 Use the SAFE reducer reference (the bound one)
             TodoScreen(
                 state = state,
                 reducer = reducer as TodoReducer
