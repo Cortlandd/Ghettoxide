@@ -11,7 +11,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 
 /**
- * Base Fragment that wires a [Reducer] into a [BaseViewModel] and
+ * Base Fragment that wires a [Reducer] into a [StoreViewModel] and
  * collects **one-off effects** with the **VIEW** lifecycle.
  *
  * Keeps feature Fragments minimal: render state and forward UI events via [vm.postAction].
@@ -23,48 +23,73 @@ import kotlinx.coroutines.launch
  *
  * ### Example
  * ```kotlin
- * class WorkoutListFragment : ReducerFragment<WorkoutListState, WorkoutListAction, WorkoutListEffect>() {
- *   @Inject override lateinit var reducer: WorkoutListReducer
+ * // DI (Hilt) example
+ * @AndroidEntryPoint
+ * class TodoFragment :
+ *     ReducerFragment<TodoState, TodoAction, TodoEffect, TodoReducer>() {
  *
- *   override val initialState = WorkoutListState()
+ *     @Inject
+ *     override lateinit var reducer: TodoReducer
  *
- *   OR
+ *     override val initialState = TodoState()
  *
- *   private val args by navArgs<UpsertWorkoutFragmentArgs>()
- *
- *   override val initialState: UpsertWorkoutState by lazy {
- *      UpsertWorkoutState(workoutId = args.workoutId)
- *   }
- *
- *   override fun onEffect(effect: WorkoutListEffect) {
- *     when (effect) {
- *       is WorkoutListEffect.NavigateToAdd ->
- *         findNavController().navigate(R.id.action_list_to_add)
- *       is WorkoutListEffect.ShowMessage ->
- *         Snackbar.make(requireView(), effect.text, Snackbar.LENGTH_LONG).show()
- *     }
- *   }
- *
- *   // In onViewCreated or Compose, you typically:
- *   // vm.state ... observe to render
- *   // vm.postAction(WorkoutListAction.Load) ... but this base calls reducer.onLoadAction() automatically.
- *
- *     // XML
- *     private fun setupListeners(binding: FragmentUpsertWorkoutBinding) {
- *         binding.saveButton.setOnClickListener {
- *             reducer.postAction(UpsertWorkoutAction.Save(binding.nameInput.text.toString()))
+ *     override fun onEffect(effect: TodoEffect) {
+ *         when (effect) {
+ *             is TodoEffect.ToastTodo ->
+ *                 Toast.makeText(requireContext(), "Saved: ${effect.todoName}", Toast.LENGTH_SHORT).show()
  *         }
  *     }
  *
- *     // Compose example
- *     private fun renderWithCompose() = ComposeView(requireContext()).apply {
+ *     override fun onCreateView(
+ *         inflater: LayoutInflater,
+ *         container: ViewGroup?,
+ *         savedInstanceState: Bundle?
+ *     ): View = ComposeView(requireContext()).apply {
  *         setContent {
- *             val s = vm.state.collectAsState().value
- *             UpsertWorkoutScreen(
- *                 state = s,
- *                 reducer = reducer as UpsertWorkoutReducer
+ *             val state = vm.state.collectAsState().value
+ *             TodoScreen(
+ *                 state = state,
+ *                 reducer = reducer // or onAction = reducer::postAction
  *             )
  *         }
+ *     }
+ * }
+ *
+ * // Non-DI example
+ * class TodoFragment :
+ *     ReducerFragment<TodoState, TodoAction, TodoEffect, TodoReducer>() {
+ *
+ *     override var reducer: TodoReducer = TodoReducer()
+ *
+ *     override val initialState = TodoState()
+ *
+ *     override fun onCreateView(
+ *         inflater: LayoutInflater,
+ *         container: ViewGroup?,
+ *         savedInstanceState: Bundle?
+ *     ): View {
+ *         val binding = FragmentTodoBinding.inflate(inflater, container, false)
+ *
+ *         // XML example – send actions via reducer.postAction(...)
+ *         binding.addButton.setOnClickListener {
+ *             reducer.postAction(TodoAction.TappedTodo("New todo"))
+ *         }
+ *
+ *         binding.saveButton.setOnClickListener {
+ *             val name = binding.todoInput.text.toString()
+ *             reducer.postAction(TodoAction.Save(name))
+ *         }
+ *
+ *         // Observe state with a simple lifecycleScope if not using Compose:
+ *         viewLifecycleOwner.lifecycleScope.launch {
+ *             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+ *                 vm.state.collect { state ->
+ *                     // render state.items into a RecyclerView, etc.
+ *                 }
+ *             }
+ *         }
+ *
+ *         return binding.root
  *     }
  * }
  * ```
@@ -75,13 +100,16 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
      * Reducer provided by the Fragment.
      *
      * - Non-DI:
-     *   override val reducer = UpsertWorkoutReducer()
-     *   usage: reducer = reducer as UpsertWorkoutReducer
+     *   override var reducer: TodoReducer = TodoReducer()
      *
      * - DI (Hilt):
-     *   @Inject override lateinit var reducer: UpsertWorkoutReducer
+     *   @Inject override lateinit var reducer: TodoReducer
+     *
+     * This reference is re-aligned to the ViewModel-owned reducer instance
+     * in [onCreate], so that `reducer` always points at the bound instance
+     * across configuration changes.
      */
-    abstract var reducer: Reducer<S, A, E>
+    abstract var reducer: R
 
     /**
      * Initial State for the screen.
@@ -103,13 +131,11 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
      *
      * ### Example
      * ```kotlin
-     * override fun onEffect(effect: WorkoutListEffect) {
-     *   when (effect) {
-     *     is WorkoutListEffect.NavigateToEdit -> findNavController().navigate(
-     *       ListFragmentDirections.actionListToEdit(effect.id)
-     *     )
-     *     is WorkoutListEffect.ShowToast -> Toast.makeText(requireContext(), effect.message, LENGTH_SHORT).show()
-     *   }
+     * override fun onEffect(effect: TodoEffect) {
+     *     when (effect) {
+     *         is TodoEffect.ToastTodo ->
+     *             Toast.makeText(requireContext(), effect.todoName, Toast.LENGTH_SHORT).show()
+     *     }
      * }
      * ```
      */
@@ -122,10 +148,13 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
 
         // Re-point the Fragment's reducer reference to the VM's reducer.
         // From this point on, `reducer` === the bound instance.
-        reducer = store.reducer
+        @Suppress("UNCHECKED_CAST")
+        reducer = store.reducer as R
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
         // Provide view lifecycle for reducer's local collectors (e.g., DB flows tied to the view).
         reducer.attachView(viewLifecycleOwner)
 

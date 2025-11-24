@@ -264,9 +264,9 @@ fun TodoScreenPreview() {
 
 TodoFragment that handles the reducer effect and what Screen to display
 ```kotlin
-class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
+class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoReducer>() {
 
-    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> =
+    override var reducer: Reducer<TodoState, TodoAction, TodoEffect, TodoReducer> =
         TodoReducer()
 
     override val initialState: TodoState = TodoState()
