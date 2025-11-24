@@ -11,7 +11,7 @@ import com.cortlandwalker.ghettoxide.FragmentReducer
 import com.cortlandwalker.ghettoxide.Reducer
 import com.cortlandwalker.ghettoxide.ReducerFragment
 
-class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect>() {
+class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoReducer>() {
 
     override var reducer: Reducer<TodoState, TodoAction, TodoEffect> = TodoReducer()
 
