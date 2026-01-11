@@ -37,6 +37,11 @@ dependencies {
     // AndroidX fragment / lifecycle for ReducerFragment
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
 
+    testImplementation("com.google.truth:truth:1.4.2")
+    testImplementation("io.mockk:mockk:1.13.12")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("app.cash.turbine:turbine:1.2.1")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

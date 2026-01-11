@@ -119,7 +119,7 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
     /**
      * StoreViewModel owns the "real" reducer that's bound and survives rotation.
      */
-    protected val vm: StoreViewModel<S, A, E> by viewModels {
+    protected open val vm: StoreViewModel<S, A, E> by viewModels {
         StoreViewModel.factory(
             initial = initialState,
             reducer = reducer       // uses whatever the Fragment has *now*

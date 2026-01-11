@@ -102,23 +102,89 @@ class TodoFragment : ReducerFragment<TodoState, TodoAction, TodoEffect, TodoRedu
 
 Ghettoxide is designed to be easily testable. The `testBind` function allows you to test a `Reducer` in isolation.
 
+### Testing Utilities Explained
+
+To write effective tests, you'll primarily use three testing-specific APIs:
+
+1.  **`reducer.testBind(initialState, effects, scope)`**: This is an extension function that prepares your `Reducer` for testing. It simulates the `StoreViewModel`'s role by providing a simple, in-memory state container.
+    *   `initialState`: The starting state for your test.
+    *   `effects`: An optional `MutableList<Effect>` that will automatically capture any effects your reducer emits with the `emit()` function.
+    *   `scope`: An optional `CoroutineScope`. By default, it uses an `Unconfined` dispatcher.
+
+2.  **`reducer.accept(Action)`**: This is the entry point for sending an action to the reducer in a test. It directly calls the `process` method within the reducer's `Mutex`, ensuring that actions are processed sequentially. It is the test-equivalent of calling `vm.postAction()` from the UI.
+
+3.  **`reducer.currentState`**: This property gives you a direct, synchronous snapshot of the state at any point in your test. You use this *after* calling `accept()` to assert that your reducer logic produced the expected outcome.
+
+### Example Test Setup (Synchronous Tests)
+
+For most tests, which cover synchronous logic, the setup is straightforward. Call `testBind` in your `@Before` block and you're done.
+
 ```kotlin
-@Test
-fun `Add action should add item to state and emit toast effect`() = runTest {
-    // Given
-    val reducer = TodoReducer()
-    val effects = mutableListOf<TodoEffect>()
-    reducer.testBind(
-        initialState = TodoState(),
-        effects = effects
-    )
+@ExperimentalCoroutinesApi
+class UpsertWorkoutReducerTest {
 
-    // When
-    reducer.accept(TodoAction.Add("New Item"))
+    private lateinit var mockRepo: WorkoutRepository
+    private lateinit var reducer: UpsertWorkoutReducer
+    private lateinit var effects: MutableList<UpsertWorkoutEffect>
 
-    // Then
-    val state = reducer.currentState
-    assertThat(state.items).containsExactly("New Item")
-    assertThat(effects).containsExactly(TodoEffect.ShowToast("Added '''New Item'''"))
+    @Before
+    fun setUp() {
+        mockRepo = mockk(relaxed = true)
+        reducer = UpsertWorkoutReducer(mockRepo)
+        effects = mutableListOf()
+
+        reducer.testBind(
+            initialState = UpsertWorkoutState(),
+            effects = effects
+        )
+    }
+
+    @Test
+    fun `SaveClicked with blank name should show error`() = runTest {
+        // When
+        reducer.accept(UpsertWorkoutAction.SaveClicked)
+
+        // Then
+        assertThat(effects.first()).isInstanceOf(UpsertWorkoutEffect.ShowError::class.java)
+    }
+}
+```
+
+### Testing Asynchronous Logic
+
+When your reducer launches coroutines (e.g., to collect a `Flow`), you need to ensure your test can control that asynchronous work. The recommended pattern is to keep your `testBind` in the `@Before` block, and for your async tests, use `reducer.attachScope(this)`.
+
+`attachScope` is an `internal` function that replaces the reducer's scope. By passing the `TestScope` from `runTest` (available as `this`), you ensure the reducer's async work runs on the same scheduler as your test.
+
+```kotlin
+@ExperimentalCoroutinesApi
+class WorkoutListReducerTest {
+    // ...
+    @Before
+    fun setUp() {
+        // ... (the same as the synchronous example)
+        reducer.testBind(
+            initialState = WorkoutListState(),
+            effects = effects
+        )
+    }
+
+    @Test
+    fun `OnLoad should collect workouts and update state`() = runTest { // `this` is a TestScope
+        // GIVEN
+        // For this async test, replace the default scope with the test's scope
+        reducer.attachScope(this)
+
+        val workouts = listOf(Workout("1", "Test"))
+        coEvery { mockRepo.observeAll() } returns flowOf(workouts)
+
+        // WHEN
+        reducer.accept(WorkoutListAction.OnLoad)
+
+        // THEN
+        // No `advanceUntilIdle()` needed, `runTest` handles it automatically.
+        val state = reducer.currentState
+        assertThat(state.workouts).isEqualTo(workouts)
+    }
 }
 ```

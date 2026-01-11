@@ -92,7 +92,8 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     protected lateinit var scope: CoroutineScope
         private set
 
-    internal fun attachScope(scope: CoroutineScope) {
+    @VisibleForTesting
+    fun attachScope(scope: CoroutineScope) {
         this.scope = scope
     }
 
@@ -207,7 +208,7 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     /**
      * Entry point for actions arriving from the ViewModel. Serialized by [mutex].
      *
-     * Exposed for testing purposes. In production, always use [StoreViewModel.postAction].
+     * Exposed for testing purposes. In production, always use [Reducer.postAction].
      */
     @VisibleForTesting
     suspend fun accept(action: A) = mutex.withLock { process(action) }
@@ -291,7 +292,10 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
  * @Test
  * fun `my test`() = runTest {
  *   val reducer = MyReducer()
- *   reducer.testBind(State(loading = true))
+ *   reducer.testBind(
+ *       initialState = State(loading = true),
+ *       scope = this
+ *   )
  *
  *   reducer.accept(Action.LoadFinished)
  *
@@ -303,6 +307,7 @@ fun <S : Any, A : Any, E : Any> Reducer<S, A, E>.testBind(
     initialState: S,
     effects: MutableList<E>? = null,
     postedActions: MutableList<A>? = null,
+    scope: CoroutineScope? = null
 ) {
     var state = initialState
     bind(
@@ -311,5 +316,5 @@ fun <S : Any, A : Any, E : Any> Reducer<S, A, E>.testBind(
         emit = { effects?.add(it) },
         post = { postedActions?.add(it) }
     )
-    attachScope(CoroutineScope(Dispatchers.Unconfined))
+    (this as Reducer<S, A, E>).attachScope(scope ?: CoroutineScope(Dispatchers.Unconfined))
 }
