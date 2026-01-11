@@ -1,10 +1,12 @@
 package com.cortlandwalker.ghettoxide
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
@@ -161,37 +163,10 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
      * from within [process]. It always returns the most recent state, respecting the
      * serialized action processing (mutex) that the reducer runs under.
      *
-     * ### When to use
-     * - Branching logic based on current state (e.g., defaults, fallbacks, guards).
-     * - Computing derived values that depend on multiple fields in state.
-     *
-     * ### When **not** to use
-     * - Do **not** try to mutate state through this property. Use [setState] / [state]
-     *   mutation helpers instead so changes go through the reducer pipeline.
-     *
-     * ### Example
-     * ```kotlin
-     * override suspend fun process(action: ConversationAction) {
-     *     when (action) {
-     *         is ConversationAction.SearchInputChanged -> {
-     *             val query = action.query.trim()
-     *             if (query.isEmpty()) {
-     *                 state { it.copy(lastSearchedInput = "", mediaItems = emptyList()) }
-     *                 return
-     *             }
-     *
-     *             // Safely read the latest state snapshot
-     *             val mediaType = currentState.chosenMediaType
-     *                 ?: currentState.mediaTypes.firstOrNull()
-     *                 ?: MediaType.GIF
-     *
-     *             // ... use mediaType for search, then update state as needed
-     *         }
-     *     }
-     * }
-     * ```
+     * @see [StoreViewModel.state] for observing state reactively from the UI.
      */
-    protected final val currentState: S
+    @VisibleForTesting
+    val currentState: S
         get() = read()
 
     /** Returns the current state (thread-safe via StoreViewModel). */
@@ -231,8 +206,11 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
 
     /**
      * Entry point for actions arriving from the ViewModel. Serialized by [mutex].
+     *
+     * Exposed for testing purposes. In production, always use [StoreViewModel.postAction].
      */
-    internal suspend fun accept(action: A) = mutex.withLock { process(action) }
+    @VisibleForTesting
+    suspend fun accept(action: A) = mutex.withLock { process(action) }
 
     // ---------- Optional hooks ----------
 
@@ -299,4 +277,39 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
             runWithOwner(owner)
         }
     }
+}
+
+/**
+ * Binds a [Reducer] for unit testing.
+ *
+ * - A simple state container is created, initialized with [initialState].
+ * - The reducer's `scope` is a [CoroutineScope] with an `Unconfined` dispatcher.
+ * - Emitted effects and posted actions can be optionally collected.
+ *
+ * ### Example
+ * ```kotlin
+ * @Test
+ * fun `my test`() = runTest {
+ *   val reducer = MyReducer()
+ *   reducer.testBind(State(loading = true))
+ *
+ *   reducer.accept(Action.LoadFinished)
+ *
+ *   assertThat(reducer.currentState.loading).isFalse()
+ * }
+ * ```
+ */
+fun <S : Any, A : Any, E : Any> Reducer<S, A, E>.testBind(
+    initialState: S,
+    effects: MutableList<E>? = null,
+    postedActions: MutableList<A>? = null,
+) {
+    var state = initialState
+    bind(
+        read = { state },
+        write = { newState -> state = newState },
+        emit = { effects?.add(it) },
+        post = { postedActions?.add(it) }
+    )
+    attachScope(CoroutineScope(Dispatchers.Unconfined))
 }

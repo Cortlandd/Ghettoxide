@@ -13,7 +13,7 @@ import com.cortlandwalker.ghettoxide.ReducerFragment
 
 class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoReducer>() {
 
-    override var reducer: Reducer<TodoState, TodoAction, TodoEffect> = TodoReducer()
+    override var reducer = TodoReducer()
 
     override val initialState: TodoState = TodoState()
 
@@ -27,7 +27,7 @@ class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoRedu
             val state = vm.state.collectAsState().value
             TodoScreen(
                 state = state,
-                reducer = reducer as TodoReducer
+                reducer = reducer
             )
         }
     }
