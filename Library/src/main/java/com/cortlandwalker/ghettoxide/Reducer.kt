@@ -316,5 +316,5 @@ fun <S : Any, A : Any, E : Any> Reducer<S, A, E>.testBind(
         emit = { effects?.add(it) },
         post = { postedActions?.add(it) }
     )
-    (this as Reducer<S, A, E>).attachScope(scope ?: CoroutineScope(Dispatchers.Unconfined))
+    this.attachScope(scope ?: CoroutineScope(Dispatchers.Unconfined))
 }
