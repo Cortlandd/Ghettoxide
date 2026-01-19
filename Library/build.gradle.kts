@@ -41,7 +41,7 @@ dependencies {
     // AndroidX fragment / lifecycle for ReducerFragment
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
 
-    implementation(platform(libs.androidx.compose.bom))
+    api(platform(libs.androidx.compose.bom))
 
     testImplementation("com.google.truth:truth:1.4.2")
     testImplementation("io.mockk:mockk:1.13.12")
