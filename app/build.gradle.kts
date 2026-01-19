@@ -9,7 +9,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.cortlandwalker.ghettoxide"
+        applicationId = "com.cortlandwalker.ghettoxide_demo"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

@@ -5,13 +5,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.ComposeView
-import com.cortlandwalker.ghettoxide.FragmentReducer
-import com.cortlandwalker.ghettoxide.Reducer
+import com.cortlandwalker.ghettoxide.ReducerContent
 import com.cortlandwalker.ghettoxide.ReducerFragment
 
-class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoReducer>() {
+class TodoFragment : ReducerFragment<TodoState, TodoAction, TodoEffect, TodoReducer>() {
 
     override var reducer = TodoReducer()
 
@@ -23,12 +21,12 @@ class TodoFragment : FragmentReducer<TodoState, TodoAction, TodoEffect, TodoRedu
         savedInstanceState: Bundle?
     ) = ComposeView(requireContext()).apply {
         setContent {
-
-            val state = vm.state.collectAsState().value
-            TodoScreen(
-                state = state,
-                reducer = reducer
-            )
+            ReducerContent { state, reducer ->
+                TodoScreen(
+                    state = state,
+                    reducer = reducer
+                )
+            }
         }
     }
 
