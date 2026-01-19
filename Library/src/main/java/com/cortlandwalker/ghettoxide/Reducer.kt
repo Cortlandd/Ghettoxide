@@ -166,7 +166,6 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
      *
      * @see [StoreViewModel.state] for observing state reactively from the UI.
      */
-    @VisibleForTesting
     val currentState: S
         get() = read()
 
