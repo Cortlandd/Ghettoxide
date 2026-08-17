@@ -168,6 +168,6 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.Cortlandd:Ghettoxide:1.1.0")
+    implementation("com.github.Cortlandd:Ghettoxide:1.1.1")
 }
 ```

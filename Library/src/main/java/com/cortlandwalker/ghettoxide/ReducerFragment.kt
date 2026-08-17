@@ -106,8 +106,8 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
         reducer.detachView()
+        super.onDestroyView()
     }
 }
 

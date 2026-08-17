@@ -29,6 +29,10 @@ enum class AppTab(
 }
 ```
 
+Keep the set finite and feature-oriented. Do not create a `TabId` per feed item, profile, or detail
+screen. A visited tab's keyed ViewModel intentionally stays in its owner so its reducer state can
+be restored; unbounded dynamic tab IDs would therefore create unbounded retained stores.
+
 ### `TabSpec`
 
 `TabSpec` is the declarative unit of tab registration.
@@ -271,6 +275,21 @@ override suspend fun process(action: NotificationsAction) {
     }
 }
 ```
+
+## Leak testing
+
+`app` and `tabshowcase` include LeakCanary through `debugImplementation`, so release artifacts are
+unaffected. A useful manual regression pass is:
+
+1. Open every app-level and nested tab.
+2. Switch between them repeatedly and reselect the active tab.
+3. Open and close several detail destinations.
+4. Rotate once on a tab and once on a detail screen.
+5. Background and foreground the app, then leave the Activity.
+
+LeakCanary should not report retained Activities, Fragments, Fragment views, or ViewModels. The
+notifications pulse should stop immediately when Notifications becomes hidden and restart with a
+single collector when restored.
 
 ### Keep effects in UI code
 

@@ -48,6 +48,12 @@ Do not build a second tab framework next to these APIs unless there is a very cl
 - keyed reducer jobs for long-lived flow work
 - `onViewDetached()` for view cleanup
 - `onCleared()` for final store cleanup
+- `rememberUpdatedState` when a long-lived Compose effect invokes a changing callback
+- `DisposeOnViewTreeLifecycleDestroyed` for Compose hosted in a Fragment view
+- finite feature-level `TabId` sets; never use content IDs as dynamic tabs
+
+Debug builds of both sample apps include LeakCanary. Exercise tab switches, nested tabs, detail
+navigation, rotation, and Activity teardown when changing lifecycle-sensitive code.
 
 ## Testing expectations
 

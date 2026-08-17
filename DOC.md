@@ -154,6 +154,28 @@ collectInScopeLatest(
 
 If the same tab becomes visible again, the old collector is replaced instead of duplicated.
 
+Pending view collectors are also bounded by key. If an action requests the same collector while a
+Fragment view is absent, Ghettoxide keeps one callback rather than retaining an unbounded queue.
+
+### Runtime leak detection
+
+Both runnable sample apps include LeakCanary in debug builds. Run `app` or `tabshowcase`, switch
+tabs repeatedly, open and close details, rotate the device, and background/foreground the app.
+LeakCanary watches destroyed Activities, Fragments, Fragment views, and cleared ViewModels.
+
+For Fragment-hosted Compose, dispose the composition with the view lifecycle:
+
+```kotlin
+ComposeView(requireContext()).apply {
+    setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+    setContent { /* screen */ }
+}
+```
+
+Tab IDs must represent a finite set of feature tabs. Content IDs belong in navigation routes, not
+in dynamically-created `TabId` instances, because visited tab ViewModels are retained intentionally
+to preserve state until their `ViewModelStoreOwner` is cleared.
+
 To stop work when a tab hides:
 
 ```kotlin

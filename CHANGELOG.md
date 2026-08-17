@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1
+
+- Prevent long-lived Compose collectors from retaining stale callbacks.
+- Scope reducer creation to `ViewModelStoreOwner` changes.
+- Bound pending view collectors and guarantee reducer job and reference cleanup.
+- Harden tab lifecycle callbacks against stale reducer and reselection events.
+- Add debug-only LeakCanary coverage and cleanup regression tests.
+
 ## 1.1.0
 
 - Add reducer-driven app-level and nested tab hosts.

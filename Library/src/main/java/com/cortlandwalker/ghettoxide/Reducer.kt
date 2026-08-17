@@ -117,7 +117,11 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
         val action: (LifecycleOwner) -> Unit
     )
 
-    private val pending = mutableListOf<PendingCollector>()
+    private val pending = linkedMapOf<String, PendingCollector>()
+
+    @get:VisibleForTesting
+    internal val pendingCollectorCount: Int
+        get() = pending.size
 
     /**
      * Long-lived jobs tied to the reducer's ViewModel scope.
@@ -156,7 +160,7 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
 
         // Flush collectors that were queued before the view existed.
         if (pending.isNotEmpty()) {
-            val toRun = pending.toList()
+            val toRun = pending.values.toList()
             pending.clear()
             toRun.forEach { it.action(owner) }
         }
@@ -256,6 +260,21 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     open fun onViewDetached() {}
 
     /**
+     * Releases framework references and reducer-scope jobs before the owning ViewModel disappears.
+     * Base cleanup runs even when a reducer overrides [onCleared] without calling `super`.
+     */
+    internal fun clear() {
+        viewOwner = null
+        perViewCollectors.clear()
+        pending.clear()
+        try {
+            onCleared()
+        } finally {
+            cancelAllScopedJobs()
+        }
+    }
+
+    /**
      * Override to cancel extra jobs or release resources when the owning ViewModel is cleared.
      * The default implementation cancels any keyed jobs launched through [launchInScope].
      */
@@ -275,14 +294,21 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     ): Job {
         check(::scope.isInitialized) { "Reducer scope is not attached yet." }
 
-        key?.let { scopedJobs.remove(it)?.cancel() }
+        val previousJob = key?.let {
+            synchronized(scopedJobs) { scopedJobs.remove(it) }
+        }
+        previousJob?.cancel()
 
         val job = scope.launch(block = block)
         if (key != null) {
-            scopedJobs[key] = job
+            synchronized(scopedJobs) {
+                scopedJobs[key] = job
+            }
             job.invokeOnCompletion {
-                if (scopedJobs[key] === job) {
-                    scopedJobs.remove(key)
+                synchronized(scopedJobs) {
+                    if (scopedJobs[key] === job) {
+                        scopedJobs.remove(key)
+                    }
                 }
             }
         }
@@ -293,15 +319,18 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
      * Cancel previously launched ViewModel-scope work for [key], if any.
      */
     protected fun cancelScopedJob(key: String) {
-        scopedJobs.remove(key)?.cancel()
+        val job = synchronized(scopedJobs) { scopedJobs.remove(key) }
+        job?.cancel()
     }
 
     /**
      * Cancel all currently tracked keyed ViewModel-scope jobs.
      */
     protected fun cancelAllScopedJobs() {
-        scopedJobs.values.toList().forEach(Job::cancel)
-        scopedJobs.clear()
+        val jobs = synchronized(scopedJobs) {
+            scopedJobs.values.toList().also { scopedJobs.clear() }
+        }
+        jobs.forEach(Job::cancel)
     }
 
     /**
@@ -355,7 +384,7 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
 
         val owner = viewOwner
         if (owner == null) {
-            pending.add(PendingCollector(key, runWithOwner))
+            pending.putIfAbsent(key, PendingCollector(key, runWithOwner))
         } else {
             runWithOwner(owner)
         }

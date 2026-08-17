@@ -100,8 +100,11 @@ class StoreViewModel<S : Any, A : Any, E : Any>(
         get() = reducer::postAction
 
     override fun onCleared() {
-        reducerImpl.onCleared()
-        super.onCleared()
+        try {
+            reducerImpl.clear()
+        } finally {
+            super.onCleared()
+        }
     }
 
     companion object {

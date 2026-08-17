@@ -62,6 +62,10 @@ import kotlinx.coroutines.flow.Flow
  * `stableKey` is used in route composition and saveable state restoration, so it should remain
  * stable across process death and app upgrades.
  *
+ * A tab host should use a finite set of feature tabs. Do not create a new [TabId] for each content
+ * item or navigation destination: visited tab stores intentionally remain in their
+ * [ViewModelStoreOwner] so tab state can be restored.
+ *
  * Example:
  * ```kotlin
  * enum class ProfileTab(
@@ -748,9 +752,11 @@ private fun <S : Any, A : Any, E : Any> BindTabLifecycle(
             visibilityState = TabVisibilityState.Visible
         )
     }
-    var lastHandledReselection by remember(sceneState.route.stableKey) { mutableIntStateOf(0) }
+    var lastHandledReselection by remember(sceneState.route.stableKey, reducer) {
+        mutableIntStateOf(sceneState.reselectionCount)
+    }
 
-    LaunchedEffect(sceneState.selectionCount) {
+    LaunchedEffect(reducer, sceneState.selectionCount) {
         when {
             sceneState.selectionCount == 1 -> {
                 reducer.dispatchTabLifecycle(TabLifecycleEvent.Selected, visibleContext)
@@ -762,14 +768,14 @@ private fun <S : Any, A : Any, E : Any> BindTabLifecycle(
         }
     }
 
-    LaunchedEffect(sceneState.reselectionCount) {
+    LaunchedEffect(reducer, sceneState.reselectionCount) {
         if (sceneState.reselectionCount > lastHandledReselection) {
             lastHandledReselection = sceneState.reselectionCount
             reducer.dispatchTabLifecycle(TabLifecycleEvent.Reselected, visibleContext)
         }
     }
 
-    DisposableEffect(sceneState.route.stableKey) {
+    DisposableEffect(sceneState.route.stableKey, reducer) {
         onDispose {
             reducer.dispatchTabLifecycle(
                 TabLifecycleEvent.Hidden,
