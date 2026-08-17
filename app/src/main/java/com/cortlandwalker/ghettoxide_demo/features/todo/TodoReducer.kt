@@ -15,11 +15,13 @@ class TodoReducer : Reducer<TodoState, TodoAction, TodoEffect>() {
                     it.copy(items = newItems)
                 }
             }
+
             is TodoAction.Save -> {
                 state {
                     it.copy(items = it.items + action.todoName)
                 }
             }
+
             is TodoAction.TappedTodo -> {
                 emit(TodoEffect.ToastTodo(action.todoName))
             }

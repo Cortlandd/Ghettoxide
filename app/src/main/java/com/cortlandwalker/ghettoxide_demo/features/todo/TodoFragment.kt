@@ -31,7 +31,7 @@ class TodoFragment : ReducerFragment<TodoState, TodoAction, TodoEffect, TodoRedu
     }
 
     override fun onEffect(effect: TodoEffect) {
-        when(effect) {
+        when (effect) {
             is TodoEffect.ToastTodo -> {
                 Toast.makeText(requireContext(), effect.todoName, Toast.LENGTH_SHORT).show()
             }
