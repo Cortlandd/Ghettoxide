@@ -103,15 +103,11 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
                 vm.effects.collect(::onEffect)
             }
         }
-
-        // Optionally trigger an initial Action when the view is created.
-        reducer.onLoadAction()?.let(vm::postAction)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Let the reducer clean up any additional jobs/resources (viewStore collectors are lifecycle-aware).
-        reducer.onCleared()
+        reducer.detachView()
     }
 }
 

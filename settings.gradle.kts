@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "Ghettoxide"
 include(":app")
 include(":Library")
+include(":tabshowcase")

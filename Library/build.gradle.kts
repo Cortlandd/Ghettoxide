@@ -42,6 +42,10 @@ dependencies {
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
 
     api(platform(libs.androidx.compose.bom))
+    api(libs.androidx.compose.runtime)
+    api(libs.androidx.compose.runtime.saveable)
+    api(libs.androidx.compose.foundation)
+    api(libs.androidx.compose.ui)
 
     testImplementation("com.google.truth:truth:1.4.2")
     testImplementation("io.mockk:mockk:1.13.12")

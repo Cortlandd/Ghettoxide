@@ -68,4 +68,26 @@ class StoreViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `onLoadAction is dispatched once when the store is created`() = runTest {
+        val loadReducer = object : Reducer<TestState, TestAction, TestEffect>() {
+            override fun onLoadAction(): TestAction? = TestAction.Increment
+
+            override suspend fun process(action: TestAction) {
+                if (action == TestAction.Increment) {
+                    state { it.copy(count = it.count + 1) }
+                }
+            }
+        }
+
+        val loadViewModel = StoreViewModel(
+            initial = TestState(),
+            reducerImpl = loadReducer
+        )
+
+        advanceUntilIdle()
+
+        assertThat(loadViewModel.state.value.count).isEqualTo(1)
+    }
 }

@@ -81,6 +81,7 @@ class StoreViewModel<S : Any, A : Any, E : Any>(
         )
         // Give the reducer access to this VM's long-lived scope.
         reducer.attachScope(viewModelScope)
+        reducer.onLoadAction()?.let(::postAction)
     }
 
     /**
@@ -97,6 +98,11 @@ class StoreViewModel<S : Any, A : Any, E : Any>(
      * */
     val dispatch: (A) -> Unit
         get() = reducer::postAction
+
+    override fun onCleared() {
+        reducerImpl.onCleared()
+        super.onCleared()
+    }
 
     companion object {
         /**

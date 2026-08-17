@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -118,6 +119,12 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
 
     private val pending = mutableListOf<PendingCollector>()
 
+    /**
+     * Long-lived jobs tied to the reducer's ViewModel scope.
+     * Keyed jobs are replaced when relaunched to prevent duplicate collectors.
+     */
+    private val scopedJobs = linkedMapOf<String, Job>()
+
     // ---------- Binding from StoreViewModel ----------
 
     /**
@@ -153,6 +160,16 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
             pending.clear()
             toRun.forEach { it.action(owner) }
         }
+    }
+
+    /**
+     * Clear the current view reference and any per-view collector keys.
+     * Called when the Fragment/Compose tree owning the reducer view is disposed.
+     */
+    internal fun detachView() {
+        viewOwner = null
+        perViewCollectors.clear()
+        onViewDetached()
     }
 
     // ---------- State & Effects API ----------
@@ -233,10 +250,76 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     abstract fun onLoadAction(): A?
 
     /**
-     * Override to cancel extra jobs or release resources that are not lifecycle-aware.
-     * View/VM scopes are managed externally.
+     * Override for view-bound cleanup when the composing/fragment view goes away.
+     * Long-lived reducer scope jobs are not cancelled here.
      */
-    open fun onCleared() {}
+    open fun onViewDetached() {}
+
+    /**
+     * Override to cancel extra jobs or release resources when the owning ViewModel is cleared.
+     * The default implementation cancels any keyed jobs launched through [launchInScope].
+     */
+    open fun onCleared() {
+        cancelAllScopedJobs()
+    }
+
+    // ---------- VM scope helpers ----------
+
+    /**
+     * Launch work in the reducer's long-lived ViewModel scope.
+     * If [key] is provided, any previous job for that key is cancelled before relaunching.
+     */
+    protected fun launchInScope(
+        key: String? = null,
+        block: suspend CoroutineScope.() -> Unit
+    ): Job {
+        check(::scope.isInitialized) { "Reducer scope is not attached yet." }
+
+        key?.let { scopedJobs.remove(it)?.cancel() }
+
+        val job = scope.launch(block = block)
+        if (key != null) {
+            scopedJobs[key] = job
+            job.invokeOnCompletion {
+                if (scopedJobs[key] === job) {
+                    scopedJobs.remove(key)
+                }
+            }
+        }
+        return job
+    }
+
+    /**
+     * Cancel previously launched ViewModel-scope work for [key], if any.
+     */
+    protected fun cancelScopedJob(key: String) {
+        scopedJobs.remove(key)?.cancel()
+    }
+
+    /**
+     * Cancel all currently tracked keyed ViewModel-scope jobs.
+     */
+    protected fun cancelAllScopedJobs() {
+        scopedJobs.values.toList().forEach(Job::cancel)
+        scopedJobs.clear()
+    }
+
+    /**
+     * Collect a Flow in the reducer's long-lived ViewModel scope while ensuring only one collector
+     * exists for a given [key].
+     */
+    protected fun <T> collectInScopeLatest(
+        key: String,
+        flow: Flow<T>,
+        onEach: suspend (T) -> Unit,
+        onError: suspend (Throwable) -> Unit = {}
+    ) {
+        launchInScope(key = key) {
+            flow
+                .catch { onError(it) }
+                .collect { onEach(it) }
+        }
+    }
 
     // ---------- Flow collection helpers ----------
 
