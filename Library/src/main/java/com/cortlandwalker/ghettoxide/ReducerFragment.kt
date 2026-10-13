@@ -9,7 +9,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
@@ -80,6 +84,25 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
      */
     protected open fun onEffect(effect: E) {}
 
+    /** Override with RESUMED when a retained offscreen Fragment remains STARTED. */
+    protected open val effectMinActiveState: Lifecycle.State = Lifecycle.State.STARTED
+
+    /**
+     * Optional presentation gate for the single primary effect collector. A retained tab host
+     * can supply a StateFlow that becomes false while hidden or covered by a child destination.
+     * This stops collection, not reducer jobs. Non-replayed effects emitted while inactive are
+     * dropped; results that must survive inactivity belong in state until acknowledged.
+     */
+    protected open val effectCollectionEnabled: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
+
+    /**
+     * Host visibility gate for reducer start/resume/pause/stop actions. False pauses and stops
+     * the presentation without destroying its view; true re-enters its current view lifecycle.
+     * Supply the same host-owned flow to [effectCollectionEnabled] when effects should also pause.
+     * This gate is independent so apps can choose lifecycle and effect policies separately.
+     */
+    protected open val reducerLifecycleEnabled: StateFlow<Boolean> = MutableStateFlow(true).asStateFlow()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Force VM creation so its reducer is bound.
@@ -97,10 +120,26 @@ abstract class ReducerFragment<S : Any, A : Any, E : Any, R : Reducer<S, A, E>> 
         // Provide view lifecycle for reducer's local collectors (e.g., DB flows tied to the view).
         reducer.attachView(viewLifecycleOwner)
 
-        // Collect effects when the view is at least STARTED.
+        val enabled = effectCollectionEnabled
         viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                vm.effects.collect(::onEffect)
+            viewLifecycleOwner.repeatOnLifecycle(effectMinActiveState) {
+                enabled.collectLatest { active ->
+                    if (active) vm.effects.collect { effect ->
+                        // Also reject an event already queued when the host closes the gate.
+                        if (enabled.value) onEffect(effect)
+                    }
+                }
+            }
+        }
+
+        val lifecycleEnabled = reducerLifecycleEnabled
+        viewLifecycleOwner.lifecycleScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val binding = ReducerLifecycleBinding(reducer, viewLifecycleOwner.lifecycle)
+            try {
+                binding.attach(lifecycleEnabled.value)
+                lifecycleEnabled.collect { binding.setActive(it) }
+            } finally {
+                binding.close()
             }
         }
     }

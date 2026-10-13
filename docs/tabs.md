@@ -64,6 +64,30 @@ This is the base class for reducers that want explicit tab lifecycle callbacks:
 
 Those callbacks return an action, so the reducer still handles behavior through its normal `process(...)` function.
 
+### Refresh policy and screen lifecycle
+
+`TabChildReducer` also inherits the optional `onStartAction()`, `onResumeAction()`,
+`onPauseAction()`, and `onStopAction()` hooks. `reducerTabSpec` binds them automatically using
+the local lifecycle and scene visibility. All return `null` by default, leaving existing tab
+behavior unchanged. Home demonstrates refresh on every resume:
+
+```kotlin
+override fun onLoadAction(): HomeAction? = null
+override fun onResumeAction(): HomeAction = HomeAction.Load
+```
+
+This covers first display, returning from another tab or an unmounted detail screen, and
+background/foreground. A custom host that keeps a tab covered must report that visibility.
+Resume is separate from reselection: tapping an already-active tab still uses `onTabReselected`.
+Apps can retain cached content by leaving resume unimplemented, refresh specifically on
+`onTabRestored`, or dispatch a freshness check from resume. Pick one load trigger rather than
+loading from both a tab callback and a screen lifecycle callback.
+
+For a standalone Compose host, use `BindReducerLifecycle(reducer, isActive = hostVisible)`.
+Fragment hosts configure `reducerLifecycleEnabled` on the base Fragment. Do not add another
+binding inside `reducerTabSpec` or `ReducerFragment`; each already owns one. State/effect collection
+and lifecycle callbacks remain separate policies. See [the lifecycle contract](../DOC.md#presentation-lifecycle-actions).
+
 ## App-level setup
 
 ```kotlin
@@ -251,6 +275,47 @@ The sample does this by storing `ListPosition` in reducer state and recreating `
 This is useful for lightweight purely-local UI state.
 
 ## Lifecycle-safe collection
+
+### Mounted but hidden tabs
+
+These controls are available since 1.2.0. `TabHost` continues to render only the
+selected scene and save its saveable values; these APIs do not automatically retain inactive views.
+
+Fragment-hosted Compose and custom presentation hosts can reuse the same binding as `reducerTabSpec`:
+
+```kotlin
+val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+val hostActive = lifecycle.isAtLeast(Lifecycle.State.RESUMED) && !coveredByDetail
+val collect = hostActive && scene.visibilityState == TabVisibilityState.Visible
+
+BindTabLifecycle(scene, reducer, isActive = hostActive)
+BindReducerLifecycle(reducer, isActive = collect)
+StoreContent(store, collectWhen = collect, minActiveState = Lifecycle.State.RESUMED) { state, dispatch ->
+    FeedScreen(state, dispatch)
+}
+ObserveEffects(store.effects, collectWhen = collect, minActiveState = Lifecycle.State.RESUMED) {
+    handleEffect(it)
+}
+```
+
+The example belongs to a custom Compose host. In a `ReducerFragment`, configure its
+`reducerLifecycleEnabled` and `effectCollectionEnabled` StateFlows plus `effectMinActiveState`
+instead of adding another lifecycle binding or collecting the primary store's effects again.
+The host must update activity even while state rendering is gated.
+
+Keep `BindTabLifecycle` in composition while inactive. It sends Hidden once on the transition out,
+Restored on return, and Hidden on active disposal. Initially hidden scenes receive no activation
+callback; store creation and its one-time load remain independent of this binding.
+Previously accumulated reselections are not replayed on mount or return. Replacing the reducer or
+route ends the old binding and creates a new one. Lifecycle callbacks dispatch normal reducer actions.
+
+`reducerTabSpec` gates its state and primary effects using scene visibility. Screen-specific effect
+collectors must also opt in; the Home showcase demonstrates this for ScrollToTop. Visibility does
+not itself stop animations or reducer jobs. Handle Hidden actions to pause expensive feature work.
+
+`collectWhen = false` retains the last state snapshot without subscribing; returning catches up to
+the latest value. Effects emitted without a subscriber are not queued by these APIs. Persist a
+pending result in feature state if it must be handled after restoration.
 
 ### Use reducer scope helpers for long-lived work
 

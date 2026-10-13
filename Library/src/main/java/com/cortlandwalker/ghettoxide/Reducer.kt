@@ -254,6 +254,31 @@ abstract class Reducer<S : Any, A : Any, E : Any> {
     abstract fun onLoadAction(): A?
 
     /**
+     * Optional action whenever the active presentation enters STARTED, including its first visit.
+     * Return an action to start a keyed subscription or check freshness in [process].
+     * [ReducerFragment] and [BindReducerLifecycle] deliver these hooks; they do not reload data
+     * unless the reducer opts in. [onLoadAction] remains once per store.
+     */
+    open fun onStartAction(): A? = null
+
+    /**
+     * Optional action on every entry into RESUMED while the presentation is active. Return your
+     * refresh action here to refresh on first display, foregrounding, and subsequent returns.
+     * Choosing this as the load trigger normally means returning null from [onLoadAction] to
+     * avoid starting the same request twice. Loading, freshness, and cancellation stay in [process].
+     */
+    open fun onResumeAction(): A? = null
+
+    /** Optional action when an active RESUMED presentation pauses, hides, or is unbound. */
+    open fun onPauseAction(): A? = null
+
+    /**
+     * Optional action when an active STARTED presentation stops, hides, or is unbound.
+     * Use it to stop presentation-only work; final resource cleanup still belongs in [onCleared].
+     */
+    open fun onStopAction(): A? = null
+
+    /**
      * Override for view-bound cleanup when the composing/fragment view goes away.
      * Long-lived reducer scope jobs are not cancelled here.
      */

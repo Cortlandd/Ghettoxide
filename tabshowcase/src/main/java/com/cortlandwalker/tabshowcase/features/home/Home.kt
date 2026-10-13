@@ -48,10 +48,11 @@ fun homeTabSpec(
             )
         }
     }
-) { _, state, effects, reducer ->
+) { scene, state, effects, reducer ->
     HomeScreen(
         state = state,
         effects = effects,
+        isVisible = scene.visibilityState == com.cortlandwalker.ghettoxide.TabVisibilityState.Visible,
         onAction = reducer::postAction
     )
 }

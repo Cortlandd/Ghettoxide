@@ -3,6 +3,8 @@ package com.cortlandwalker.ghettoxide
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.Lifecycle
@@ -13,6 +15,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * Compose helpers for reducer-backed [StoreViewModel] instances.
@@ -63,8 +67,33 @@ fun <S : Any, A : Any, E : Any> StoreContent(
     store: StoreViewModel<S, A, E>,
     content: @Composable (state: S, dispatch: (A) -> Unit) -> Unit
 ) {
-    val stateValue by store.state.collectAsStateWithLifecycle()
+    StoreContent(store, collectWhen = true, content = content)
+}
+
+/**
+ * Collect state only while [collectWhen] and [minActiveState] permit it. The composition remains
+ * mounted with its last snapshot while inactive and catches up on reactivation. Reducer work is
+ * unaffected. The overload without these options preserves the normal STARTED behavior.
+ */
+@Composable
+fun <S : Any, A : Any, E : Any> StoreContent(
+    store: StoreViewModel<S, A, E>,
+    collectWhen: Boolean,
+    minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    content: @Composable (state: S, dispatch: (A) -> Unit) -> Unit
+) {
+    val stateValue by store.state.collectStateWhen(collectWhen, minActiveState)
     content(stateValue, store.dispatch)
+}
+
+@Composable
+internal fun <S> StateFlow<S>.collectStateWhen(
+    collectWhen: Boolean,
+    minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+): State<S> = key(this) {
+    // Keep one snapshot across gate changes, but never carry it into a different store owner.
+    val source = remember(this, collectWhen) { if (collectWhen) this else emptyFlow() }
+    source.collectAsStateWithLifecycle(initialValue = value, minActiveState = minActiveState)
 }
 
 /**
@@ -92,11 +121,27 @@ fun <E : Any> ObserveEffects(
     minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
     onEffect: suspend (E) -> Unit
 ) {
+    ObserveEffects(effects, collectWhen = true, minActiveState = minActiveState, onEffect = onEffect)
+}
+
+/**
+ * Opt-in visibility gate for an effect collector. This does not add buffering or replay: durable
+ * results must remain in state until the active UI acknowledges them. Other collectors of the same
+ * flow are independent and must use their own appropriate gate.
+ */
+@Composable
+fun <E : Any> ObserveEffects(
+    effects: Flow<E>,
+    collectWhen: Boolean,
+    minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    onEffect: suspend (E) -> Unit
+) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnEffect by rememberUpdatedState(onEffect)
-    LaunchedEffect(effects, lifecycleOwner, minActiveState) {
-        lifecycleOwner.repeatOnLifecycle(minActiveState) {
-            effects.collect { currentOnEffect(it) }
+    val currentEnabled by rememberUpdatedState(collectWhen)
+    LaunchedEffect(effects, lifecycleOwner, minActiveState, collectWhen) {
+        if (collectWhen) lifecycleOwner.repeatOnLifecycle(minActiveState) {
+            effects.collect { if (currentEnabled) currentOnEffect(it) }
         }
     }
 }

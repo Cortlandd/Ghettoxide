@@ -26,14 +26,16 @@ import kotlinx.coroutines.flow.Flow
 fun HomeScreen(
     state: HomeState,
     effects: Flow<HomeEffect>,
-    onAction: (HomeAction) -> Unit
+    onAction: (HomeAction) -> Unit,
+    isVisible: Boolean = true,
 ) {
     val listState = rememberTrackedLazyListState(
         position = state.listPosition,
         onPositionChanged = { onAction(HomeAction.SaveScroll(it)) }
     )
 
-    ObserveEffects(effects) { effect ->
+    // The tab spec gates navigation effects; this screen separately gates its scroll effect.
+    ObserveEffects(effects, collectWhen = isVisible) { effect ->
         if (effect is HomeEffect.ScrollToTop) {
             listState.animateScrollToItem(0)
         }

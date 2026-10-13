@@ -5,9 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -583,7 +581,8 @@ fun <T : TabId, S : Any, A : Any, E : Any, R : TabChildReducer<S, A, E>> reducer
         initialState = initialState,
         reducerFactory = reducerFactory
     )
-    val state by store.state.collectAsStateWithLifecycle()
+    val visible = sceneState.visibilityState == TabVisibilityState.Visible
+    val state by store.state.collectStateWhen(visible)
 
     BindTabLifecycle(
         sceneState = sceneState,
@@ -591,8 +590,10 @@ fun <T : TabId, S : Any, A : Any, E : Any, R : TabChildReducer<S, A, E>> reducer
     )
     ObserveEffects(
         effects = store.effects,
+        collectWhen = visible,
         onEffect = onEffect
     )
+    BindReducerLifecycle(reducer, isActive = visible)
 
     screen(sceneState, state, store.effects, reducer)
 }
@@ -741,49 +742,63 @@ fun <T : TabId> TabHost(
     }
 }
 
+/**
+ * Shared tab lifecycle binding for Compose hosts and Fragment-hosted Compose. Hidden scenes can
+ * stay mounted: visibility changes dispatch Hidden exactly once, and a later activation dispatches
+ * Restored. [isActive] lets the host include foreground lifecycle or coverage by another screen.
+ *
+ * Keep this binding composed while hidden. Cumulative reselections observed during inactivity or
+ * before mounting are not replayed. Disposal hides an active binding, but does not clear its store.
+ * This binds lifecycle actions only; state/effect collection and UI retention remain host policies.
+ */
 @Composable
-private fun <S : Any, A : Any, E : Any> BindTabLifecycle(
+fun <S : Any, A : Any, E : Any> BindTabLifecycle(
     sceneState: TabSceneState<*>,
-    reducer: TabChildReducer<S, A, E>
+    reducer: TabChildReducer<S, A, E>,
+    isActive: Boolean = true,
 ) {
-    val visibleContext = remember(sceneState.route) {
-        TabLifecycleContext(
-            route = sceneState.route,
-            visibilityState = TabVisibilityState.Visible
-        )
+    val binding = remember(sceneState.route, reducer) {
+        TabLifecycleBinding(reducer, sceneState.route, sceneState.reselectionCount)
     }
-    var lastHandledReselection by remember(sceneState.route.stableKey, reducer) {
-        mutableIntStateOf(sceneState.reselectionCount)
+    LaunchedEffect(binding, sceneState.visibilityState, sceneState.selectionCount,
+        sceneState.reselectionCount, isActive) {
+        binding.update(sceneState, isActive)
     }
+    DisposableEffect(binding) { onDispose { binding.hide() } }
+}
 
-    LaunchedEffect(reducer, sceneState.selectionCount) {
-        when {
-            sceneState.selectionCount == 1 -> {
-                reducer.dispatchTabLifecycle(TabLifecycleEvent.Selected, visibleContext)
+private class TabLifecycleBinding<S : Any, A : Any, E : Any>(
+    private val reducer: TabChildReducer<S, A, E>,
+    private val route: TabRoute,
+    private var lastReselection: Int,
+) {
+    private var visible = false
+    private var appeared = false
+    private var lastSelection = 0
+
+    fun update(scene: TabSceneState<*>, active: Boolean) {
+        val wasVisible = visible
+        val reselected = scene.reselectionCount > lastReselection
+        lastReselection = scene.reselectionCount
+        if (!active || scene.visibilityState != TabVisibilityState.Visible || scene.selectionCount == 0) {
+            hide()
+        } else {
+            val context = TabLifecycleContext(route, TabVisibilityState.Visible)
+            if (!wasVisible || lastSelection != scene.selectionCount) {
+                val event = if (!appeared && scene.selectionCount == 1) TabLifecycleEvent.Selected
+                    else TabLifecycleEvent.Restored
+                visible = true
+                appeared = true
+                reducer.dispatchTabLifecycle(event, context)
             }
-
-            sceneState.selectionCount > 1 -> {
-                reducer.dispatchTabLifecycle(TabLifecycleEvent.Restored, visibleContext)
-            }
+            if (wasVisible && reselected) reducer.dispatchTabLifecycle(TabLifecycleEvent.Reselected, context)
         }
+        lastSelection = scene.selectionCount
     }
 
-    LaunchedEffect(reducer, sceneState.reselectionCount) {
-        if (sceneState.reselectionCount > lastHandledReselection) {
-            lastHandledReselection = sceneState.reselectionCount
-            reducer.dispatchTabLifecycle(TabLifecycleEvent.Reselected, visibleContext)
-        }
-    }
-
-    DisposableEffect(sceneState.route.stableKey, reducer) {
-        onDispose {
-            reducer.dispatchTabLifecycle(
-                TabLifecycleEvent.Hidden,
-                TabLifecycleContext(
-                    route = sceneState.route,
-                    visibilityState = TabVisibilityState.Hidden
-                )
-            )
-        }
+    fun hide() {
+        if (!visible) return
+        visible = false
+        reducer.dispatchTabLifecycle(TabLifecycleEvent.Hidden, TabLifecycleContext(route, TabVisibilityState.Hidden))
     }
 }

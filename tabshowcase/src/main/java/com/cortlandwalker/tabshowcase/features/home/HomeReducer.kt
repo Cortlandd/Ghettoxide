@@ -10,9 +10,9 @@ class HomeReducer(
 
     override fun onLoadAction(): HomeAction? = null
 
-    override fun onTabSelected(context: TabLifecycleContext): HomeAction? {
-        return if (currentState.clips.isEmpty()) HomeAction.Load else null
-    }
+    // This tab deliberately refreshes on every resume, including returning from detail or
+    // another tab. Other tabs can keep cached data by leaving this hook at its null default.
+    override fun onResumeAction(): HomeAction = HomeAction.Load
 
     override fun onTabReselected(context: TabLifecycleContext): HomeAction? = HomeAction.TabReselected
 
