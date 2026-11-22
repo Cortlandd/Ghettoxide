@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.github.Cortlandd"
-version = providers.environmentVariable("VERSION").orElse("1.2.0").get()
+version = providers.environmentVariable("VERSION").orElse("1.3.0").get()
 
 android {
     namespace = "com.cortlandwalker.ghettoxide"

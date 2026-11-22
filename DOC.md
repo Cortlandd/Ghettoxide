@@ -211,6 +211,57 @@ or `BindTabLifecycle`/tab actions.
 Hidden retained Fragments are commonly capped at STARTED. Capping a normal Fragment at CREATED
 destroys its view. Keeping a destroyed ComposeView is not a substitute for a valid view lifecycle.
 
+### Logical presentation scopes
+
+View existence does not identify the current screen. `PresentationScope<Identity>` captures a
+specific logical presentation and checks its host-provided identity plus lifecycle before UI
+commands. Different visits to the same destination need different identity values.
+
+```kotlin
+val presentation = PresentationScope(
+    owner = viewLifecycleOwner,
+    identity = presentationId,
+    currentIdentity = currentPresentationId, // StateFlow<PresentationId?>, null while inactive
+    isOwnerCurrent = { hostStillOwnsPresentation() },
+)
+
+presentation.launchWhileCurrent {
+    hideSheet()
+    presentation.runIfCurrent { deliverNavigationResult() }
+}
+```
+
+All access and identity updates are on the main thread. `isCurrent` and `runIfCurrent` read live
+state; the validation and non-suspending command happen together. The minimum lifecycle is
+STARTED by default and can be changed to CREATED or RESUMED. Native lifecycle events cancel
+transient jobs even when stop and start occur before a flow collector gets another turn.
+
+`active: StateFlow<Boolean>` starts observation on first use and then tracks eagerly for the
+owner's lifetime, without requiring a subscriber. It can feed the existing effect/lifecycle gates
+or a feature's pending-result retry logic. It does not install another reducer effect collector.
+An adapter must update `currentIdentity` when external ownership changes; `isOwnerCurrent` adds
+a fresh final check, but an arbitrary predicate alone cannot notify the activity flow.
+
+In a synchronous host callback, update the identity and then call `refreshOwnership()`:
+
+```kotlin
+currentPresentationId.value = newCurrentId
+presentation.refreshOwnership()
+```
+
+This immediately refreshes `active` and cancels obsolete UI jobs even if the host leaves and
+returns before the identity flow watcher runs. Observation still starts lazily: direct
+`isCurrent` and `runIfCurrent` calls install no observers; `refreshOwnership`, `active`, or
+`launchWhileCurrent` start observation when needed.
+
+`launchWhileCurrent` returns null for an inactive owner. Started UI jobs cancel on observed
+identity replacement/removal, falling below the minimum lifecycle state, or destruction, and do not restart when the owner
+returns. Still use `runIfCurrent` after the final suspension. Cancellation is cooperative and
+cannot undo a server mutation. Submitted writes and long-lived jobs belong to their feature or
+application scope; acknowledged pending results and request identities remain feature policy.
+Navigation adapters belong to the application or an optional integration, keeping `NavController`,
+Fragment, and other platform UI objects out of reducers and `StoreViewModel`.
+
 The original collection overloads retain their STARTED behavior. Inactive state collectors keep
 their last snapshot and catch up when active; switching stores gets the new store's own initial
 snapshot. Effects have no added buffering or replay. Store results that must survive inactivity in

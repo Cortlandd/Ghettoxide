@@ -93,6 +93,22 @@ single effect collector. Defaults remain enabled at STARTED.
 These APIs do not retain tab views or add effect replay. `TabHost` still renders only the selected
 scene. See [the visibility contract](docs/tabs.md#mounted-but-hidden-tabs) before adding retention.
 
+### Logical presentation ownership
+
+`PresentationScope` binds transient UI work to a lifecycle owner and a unique presentation
+identity. Use `runIfCurrent` immediately before navigation or result delivery, and
+`launchWhileCurrent` for UI-only work that must cancel when its presentation closes, is replaced,
+or stops. Its `active` flow can feed an existing presentation gate; it adds no effect collector
+and does not replay cancelled commands. A host-specific `isOwnerCurrent` check validates live
+ownership even before the identity flow updates.
+
+Native host callbacks can update the identity and call `refreshOwnership()` synchronously so a
+rapid away-and-back transition cancels obsolete UI work before flow updates are coalesced.
+
+Navigation remains an optional host concern: the primitive has no `NavController` dependency.
+Pending successful results, submitted writes, durable generation, and stale request policies stay
+in the feature or application owner. See [the API example](DOC.md#logical-presentation-scopes).
+
 ### App-owned refresh behavior
 
 Reducers can override `onStartAction()`, `onResumeAction()`, `onPauseAction()`, and `onStopAction()`.
@@ -203,6 +219,6 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.Cortlandd:Ghettoxide:1.2.0")
+    implementation("com.github.Cortlandd:Ghettoxide:1.3.0")
 }
 ```
